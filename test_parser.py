@@ -64,8 +64,8 @@ def get_data_from_payload(payload):
     bin_num = bin_num[:24]
     bin_num = bin_num[::-1]
     """
-    Две строчки выше - вынужденный костыль. Единственный возможный способ получить по входным значениям выходные, это:
-    После перевода 10FA0E00 в двоичную систему, выкинуть пустой байт, пронумеровать оставшиеся байты слева направо, а биты 
+    Единственный возможный способ получить по входным значениям выходные, это:
+    После перевода 10FA0E00 в двоичную систему, пронумеровать оставшиеся байты слева направо, а биты 
     отсчитывать справа налево. Если этому есть логическое объяснение хотелось бы услышать. 
     """
     byte3 = bin_num[0:8]
@@ -74,30 +74,54 @@ def get_data_from_payload(payload):
     byte_pack = [byte1, byte2, byte3]
     parsed_data = {}
 
-    for i, k in enumerate(device_settings):
-        keys = k.keys()
-        for key in keys:
-            var = list(device_settings[i].get(key))
-            size = var[0]
+    for index, byte_settings in enumerate(device_settings):
+        bits = byte_settings.keys()
+        for bit in bits:
+            field_settings = list(device_settings[index].get(bit))
+            size = field_settings[0]
             if size == 1:
-                temp = byte_pack[i]
-                temp = f'0{temp[key:key+size]}'
+                temp = byte_pack[index]
+                temp = f'0{temp[bit:bit+size]}'
                 """
                 Откуда на выходе должен был взяться 0 перед каждым одиночным битом я тоже не понял, но дорисовал.
                 """
             else:
-                temp = byte_pack[i][key:key+size]
+                temp = byte_pack[index][bit:bit+size]
                 temp = int(temp, 2)
-                if var[1] == 'field1':
+                if field_settings[1] == 'field1':
                     temp = field1.get(str(temp))
-                elif var[1] == 'field4':
+                elif field_settings[1] == 'field4':
                     temp = field4.get(str(temp))
-                elif var[1] == 'field8':
+                elif field_settings[1] == 'field8':
                     temp = field8.get(str(temp))
-            parsed_data.update({var[1]: temp})
+            parsed_data.update({field_settings[1]: temp})
 
     return parsed_data
 
-@pytest.mark.parametrize('data', [test_data])
-def test_parsing_expected_results(data):
-    assert get_data_from_payload(data) == ([y for x, y in data])[0], 'Results not match'
+
+expected_result = {'field1': 'Low',
+                             'field2': '00',
+                             'field3': '01',
+                             'field4': '00',
+                             'field5': '00',
+                             'field6': '01',
+                             'field7': '00',
+                             'field8': 'Very High',
+                             'field9': '00',
+                             'field10': '00'}
+
+unexpected_result = {'field1': 'Low',
+                             'field2': '00',
+                             'field3': '01',
+                             'field4': '00',
+                             'field5': '00',
+                             'field6': '00',
+                             'field7': '00',
+                             'field8': 'Very High',
+                             'field9': '00',
+                             'field10': '00'}
+
+
+@pytest.mark.parametrize("test_input, expected", [(test_data, expected_result), (test_data, unexpected_result)])
+def test_parsing_expected_results(test_input, expected):
+    assert get_data_from_payload(test_input) == expected, 'Results not match'
